@@ -1,4 +1,4 @@
-# W32Calc (Win32 Calculator0
+# W32Calc (Win32 Calculator)
 
 This repository contains a simple calculator application built using the Win32 API. The calculator provides basic arithmetic operations and a graphical user interface (GUI) for easy interaction.
 
