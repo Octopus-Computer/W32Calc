@@ -1,4 +1,4 @@
-# Simple Win32 Calculator
+# W32Calc (Win32 Calculator0
 
 This repository contains a simple calculator application built using the Win32 API. The calculator provides basic arithmetic operations and a graphical user interface (GUI) for easy interaction.
 
@@ -15,7 +15,7 @@ This repository contains a simple calculator application built using the Win32 A
 Before running the calculator application, ensure that you have the following prerequisites installed:
 
 - Windows operating system (tested on Windows 10).
-- Microsoft Visual Studio with C++ development tools.
+- Microsoft Visual Studio 2022 with C++ development tools.
 
 ## Installation
 
@@ -23,7 +23,7 @@ To install and run the calculator application, follow these steps:
 
 1. Clone this repository to your local machine using the following command:
 
-git clone https://github.com/your-username/Simple-Win32-Calculator.git
+git clone https://github.com/Octopus-Computer/W32Calc.git
 
 2. Open the project in Microsoft Visual Studio.
 
@@ -39,7 +39,7 @@ git clone https://github.com/your-username/Simple-Win32-Calculator.git
 
 3. The result will be displayed in the calculator's output area.
 
-4. To clear the calculator, click the "Clear" button.
+4. To clear the calculator, click the "Clear" (C) button.
 
 ## Contributing
 
