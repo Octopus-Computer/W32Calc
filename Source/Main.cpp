@@ -4,13 +4,18 @@
 #include <codecvt>
 #include <sstream>
 #include <vector>
+#include <unordered_map>
+#include <dwmapi.h>
 
-#define WINDOW_RATIO 1.5f
-#define BOARD_ROWS 4
-#define BOARD_COLUMNS 4 
+#define WINDOW_RATIO 1.6625f
+#define BOARD_ROWS buttonTexts.size()
+#define BOARD_COLUMNS buttonTexts[0].size()
+#define BUTTON_SPACING 10
+#define BOARD_POS(h) Vector2i(-(BUTTON_SPACING / 2), static_cast<int>(h / 4.0f - BUTTON_SPACING / 2)) 
 #define DEFAULT_SIZE 16
-#define BOARD_POS(h) Vector2i(0, static_cast<int>(h / 4.0f))
-
+#define DEFAULT_FONT(s) CreateFont(s, 0, 0, 0, 0, FALSE, FALSE, FALSE, ANSI_CHARSET, \
+								OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, \
+								DEFAULT_PITCH | FF_DONTCARE, L"Segoe MDL2 Assets")
 struct Vector2i
 {
 	int x, y;
@@ -50,13 +55,11 @@ std::wstring double2wstr(double number)
 	return str;
 }
 
-double CalculatorInputParser(std::wstring input)
+void InputParser(std::wstring input, double& num1, double& num2, wchar_t& op)
 {
-	double answer = 0;
 	try
 	{
 		size_t pos = std::wstring::npos;
-		double num1 = 0, num2 = 0;
 
 		std::wstring operators = L"+-*/", temp = L"";
 
@@ -71,7 +74,6 @@ double CalculatorInputParser(std::wstring input)
 			for (int i = 0; i < pos; i++)
 			{
 				temp += input[i];
-				std::cout << "Num1 " << i << std::endl;
 			}
 
 			num1 = std::stod(temp);
@@ -80,7 +82,6 @@ double CalculatorInputParser(std::wstring input)
 			for (int i = pos + 1; i < input.size(); i++)
 			{
 				temp += input[i];
-				std::cout << "Num2 " << i << std::endl;
 			}
 
 			if (temp.empty()) num2 = num1;
@@ -88,32 +89,89 @@ double CalculatorInputParser(std::wstring input)
 
 			temp = L"";
 
-			switch (input[pos])
-			{
-			case L'+':
-				answer = num1 + num2;
-				break;
-			case L'-':
-				answer = num1 - num2;
-				break;
-
-			case L'*':
-				answer = num1 * num2;
-				break;
-
-			case L'/':
-				answer = num1 / num2;
-				break;
-			}
+			op = input[pos];
 		}
-		else answer = std::stod(input);
+		else
+			num1 = std::stod(input);
 	}
 	catch (std::exception& e)
 	{
 		MessageBoxW(NULL, str2wstr(e.what()).c_str(), L"Error!", MB_ICONEXCLAMATION | MB_OK);
 	}
+}
+
+double CalculateInput(std::wstring input)
+{
+	double num1 = 0, num2 = 0, answer = 0;
+	wchar_t op;
+	InputParser(input, num1, num2, op);
+
+	if (num1 != 0 && num2 != 0)
+	{
+		switch (op)
+		{
+		case L'+':
+			answer = num1 + num2;
+			break;
+
+		case L'-':
+			answer = num1 - num2;
+			break;
+
+		case L'*':
+			answer = num1 * num2;
+			break;
+
+		case L'/':
+			answer = num1 / num2;
+			break;
+		}
+	}
+	else
+		answer = num1;
 
 	return answer;
+}
+
+void NegateNumber(std::wstring& input)
+{
+	if (wcscmp(input.c_str(), L"0") == 0)
+		return;
+
+	double num1 = 0, num2 = 0;
+	wchar_t op = L'\0';
+
+	InputParser(input, num1, num2, op);
+
+	if (op == L'\0')
+	{
+		// Only one number is present
+		num1 = -num1;
+		input = double2wstr(num1);
+	}
+	else
+	{
+		// Two numbers are present
+		num2 = -num2;
+		input = double2wstr(num1) + op + double2wstr(num2);
+	}
+}
+
+void EraseFinalNumber(std::wstring& input)
+{
+	double num1 = 0, num2 = 0;
+	wchar_t op = L'\0';
+
+	InputParser(input, num1, num2, op);
+
+	if (op == L'\0')
+	{
+		input = L"0";
+	}
+	else
+	{
+		input = double2wstr(num1) + op;
+	}
 }
 
 void ErrorExit(LPCWSTR lpszFunction)
@@ -149,17 +207,53 @@ void ErrorExit(LPCWSTR lpszFunction)
 	ExitProcess(dw);
 }
 
+std::unordered_map<wchar_t, wchar_t> UnicodeMap =
+{
+	{ L'\uE948', L'+' }, // Calculator Addition
+	{ L'\uE949', L'-' }, // Calculator Subtract
+	{ L'\uE947', L'*' }, // Calculator Multiply
+	{ L'\uE94A', L'/' }, // Calculator Divide
+};
+
+std::wstring TranslateUnicode(std::wstring wstr)
+{
+	std::wstring out = wstr;
+	for (int i = 0; i < out.size(); i++)
+	{
+		auto it = UnicodeMap.find(out[i]);
+		if (it != UnicodeMap.end()) {
+			out[i] = it->second;
+		}
+	}
+
+	return out;
+}
+
 std::vector<std::vector<std::wstring>> buttonTexts =
 {
-	{L"7", L"8", L"9", L"/"},
-	{L"4", L"5", L"6", L"*"},
-	{L"1", L"2", L"3", L"-"},
-	{L"=", L"0", L".", L"+"}
+	{L"\uE94D", L"CE", L"C", L"\uE94F"},
+	{L"7",      L"8",  L"9", L"\uE94A"},
+	{L"4",      L"5",  L"6", L"\uE947"},
+	{L"1",      L"2",  L"3", L"\uE949"},
+	{L"\uE94E", L"0",  L".", L"\uE948"}
 };
+
+bool Filter(const std::vector<std::wstring>& filter, const wchar_t* target)
+{
+	for (const auto& str : filter)
+	{
+		if (wcscmp(str.c_str(), target) == 0)
+		{
+			return true; // Match found
+		}
+	}
+	return false; // No match found
+}
+
 
 std::vector<HWND> buttons;
 HWND inputBox;
-std::wstring input, prevInput, answer;
+std::wstring input = L"0", prevInput, answer;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -167,17 +261,14 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_CREATE:
 	{
-
-		HFONT hFont = CreateFont(DEFAULT_SIZE, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET,
-			OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
-			DEFAULT_PITCH | FF_DONTCARE, TEXT("Segoe UI"));
+		HFONT hFont = DEFAULT_FONT(DEFAULT_SIZE);
 
 		RECT size{};
 		GetClientRect(hWnd, &size);
 
 		int width = size.right - size.left, height = size.bottom - size.top;
 		Vector2i boardPos = BOARD_POS(height);
-		const int spacing = 10;
+		const int spacing = BUTTON_SPACING;
 		Vector2i buttonSize = Vector2i(width / 4 - spacing, (height - boardPos.y) / 4 - spacing);
 
 		for (int row = 0; row < BOARD_ROWS; row++)
@@ -188,7 +279,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 					0L,
 					L"Button",                   // Predefined class; Unicode assumed
 					buttonTexts[row][col].c_str(),                   // Button text
-					WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON,  // Styles
+					WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_OWNERDRAW,  // Styles
 					(spacing + (buttonSize.x + spacing) * col) + boardPos.x,     // X position
 					(spacing + (buttonSize.y + spacing) * row) + boardPos.y,                  // Y position
 					buttonSize.x,                  // Button width
@@ -204,8 +295,69 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		}
 
 		inputBox = CreateWindowEx(0L, L"Static", input.c_str(), WS_VISIBLE | WS_CHILD, 0, 0, width, boardPos.y - 0, hWnd, NULL, NULL, NULL);
+		SendMessage(inputBox, WM_SETFONT, (WPARAM)hFont, MAKELPARAM(0, TRUE));
 
 		DeleteObject(hFont);
+
+		break;
+	}
+
+	case WM_DRAWITEM:
+	{
+		LPDRAWITEMSTRUCT lpdis = reinterpret_cast<LPDRAWITEMSTRUCT>(lParam);
+
+		if (lpdis->CtlID >= 1 && lpdis->CtlID <= buttons.size())
+		{
+			TEXTMETRIC tm;
+			GetTextMetrics(lpdis->hDC, &tm);
+
+			WCHAR symbol[3];
+			GetWindowText(lpdis->hwndItem, symbol, 3);
+
+			SIZE textSize;
+			GetTextExtentPoint32(lpdis->hDC, symbol, wcslen(symbol), &textSize);
+
+			// Calculate button dimensions
+			int buttonWidth = lpdis->rcItem.right - lpdis->rcItem.left;
+			int buttonHeight = lpdis->rcItem.bottom - lpdis->rcItem.top;
+
+			// Define the roundness of the rectangle (change this value to adjust the roundness)
+			int cornerRadius = 10;
+
+			// Draw the round rectangle button
+			HPEN hPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+			HBRUSH hBrush = CreateSolidBrush(RGB(59, 59, 59));
+			SelectObject(lpdis->hDC, hPen);
+			SelectObject(lpdis->hDC, hBrush);
+			RoundRect(lpdis->hDC, lpdis->rcItem.left, lpdis->rcItem.top, lpdis->rcItem.right, lpdis->rcItem.bottom, cornerRadius, cornerRadius);
+
+			// Set the background mode and background color for the text
+			SetBkMode(lpdis->hDC, TRANSPARENT);
+			SetBkColor(lpdis->hDC, RGB(59, 59, 59));
+
+			// Calculate the position to center the text inside the button
+			int textX = (buttonWidth - textSize.cx) / 2;
+			int textY = (buttonHeight - textSize.cy) / 2;
+
+			// Set the text color to white
+			SetTextColor(lpdis->hDC, RGB(255, 255, 255));
+
+			// Draw the text inside the button
+			DrawText(lpdis->hDC, symbol, -1, &lpdis->rcItem, DT_SINGLELINE | DT_CENTER | DT_VCENTER);
+
+			DeleteObject(hPen);
+			DeleteObject(hBrush);
+		}
+
+		break;
+	}
+
+	case WM_CTLCOLORSTATIC:
+	{
+		HDC hdcStatic = (HDC)wParam;
+		SetBkColor(hdcStatic, RGB(32, 32, 32));  // Set the background color (red in this example)
+		SetTextColor(hdcStatic, RGB(255, 255, 255));  // Set the text color (green in this example)
+		return (LRESULT)GetStockObject(NULL_BRUSH);  // Return the handle to a null brush to prevent background erasure
 	}
 
 	case WM_CHAR:
@@ -219,9 +371,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			if (!input.empty()) input.pop_back();
 			break;
 
-		case 0x0d:
-			answer = double2wstr(CalculatorInputParser(input));
-			input.clear();
+		case 0x0D:
+			answer = double2wstr(CalculateInput(input));
+			input = L"0";
 			break;
 
 		default:
@@ -242,6 +394,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	case WM_SIZE:
 	{
+
+		/* Uncomment if you want when user resize window ratio will use
 		{
 			RECT size{};
 			GetWindowRect(hWnd, &size);
@@ -249,6 +403,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			int width = min(size.right - size.left, size.bottom - size.top), height = width * WINDOW_RATIO;
 			SetWindowPos(hWnd, NULL, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER);
 		}
+		*/
 
 		{
 			RECT size{};
@@ -256,13 +411,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 			int width = size.right - size.left, height = size.bottom - size.top;
 			Vector2i boardPos = BOARD_POS(height);
-			const int spacing = 10;
+			const int spacing = BUTTON_SPACING;
 			Vector2i buttonSize = Vector2i(width / BOARD_COLUMNS - spacing, (height - boardPos.y) / BOARD_ROWS - spacing);
 
-			int targetRow = 2; // Row index of the button
-			int targetColumn = 3; // Column index of the button
-
-			HWND targetButton = buttons[targetRow * BOARD_COLUMNS + targetColumn];
+			HWND targetButton = buttons[0 * BOARD_COLUMNS + 0];
 
 			RECT button;
 			GetClientRect(targetButton, &button);
@@ -271,22 +423,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			int newFontSize = ((button.right - button.left) + (button.bottom - button.top)) / 4;
 
 			// Create a new font with the updated size
-			HFONT hFont = CreateFont(
-				newFontSize,          // Font height
-				0,                    // Font width
-				0,                    // Font escapement
-				0,                    // Font orientation
-				FW_NORMAL,            // Font weight
-				FALSE,                // Font italic
-				FALSE,                // Font underline
-				FALSE,                // Font strikeout
-				DEFAULT_CHARSET,      // Character set
-				OUT_DEFAULT_PRECIS,   // Output precision
-				CLIP_DEFAULT_PRECIS,  // Clipping precision
-				DEFAULT_QUALITY,      // Font quality
-				DEFAULT_PITCH,        // Font pitch and family
-				L"Segoe UI"               // Font face name
-			);
+			HFONT hFont = DEFAULT_FONT(newFontSize);
 
 			for (int row = 0; row < BOARD_ROWS; row++)
 			{
@@ -310,7 +447,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				}
 			}
 
-			SetWindowPos( inputBox, NULL, 0, 0, width, boardPos.y - 0, SWP_NOZORDER);
+			SetWindowPos(inputBox, NULL, 0, 0, width, boardPos.y - 0, SWP_NOZORDER);
 			// Set the new font for the button
 			SendMessage(inputBox, WM_SETFONT, WPARAM(hFont), TRUE);
 
@@ -326,23 +463,48 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		// Handle button press
 		int buttonID = LOWORD(wParam);
 
+		// special button char
+		std::vector<std::wstring> special = { L"\uE94D", L"CE", L"C", L"\uE94F", L"\uE94E" };
+		std::vector<std::wstring> op = { L"\uE948", L"\uE949", L"\uE947", L"\uE94A" };
+
 		// Check if the button ID corresponds to one of our buttons
 		if (buttonID >= 1 && buttonID <= buttons.size())
 		{
 			int buttonIndex = buttonID - 1;
 			HWND hButton = buttons[buttonIndex];
 
-			WCHAR temp[2];
-			GetWindowText(hButton, temp, 2);
+			WCHAR temp[3];
+			GetWindowText(hButton, temp, 3);
+			std::wcout << temp << std::endl;
 
-			if (wcscmp(temp, L"=") != 0)
+			if (!Filter(special, temp))
 			{
-				input += temp;
+				if (input.size() != 0 && input[0] == L'0') input.erase(0, 1);
+				input += TranslateUnicode(temp);
 			}
 			else
 			{
-				answer = double2wstr(CalculatorInputParser(input));
-				input = answer;
+				if (wcscmp(temp, special[0].c_str()) == 0)
+				{
+					NegateNumber(input);
+				}
+				else if (wcscmp(temp, special[1].c_str()) == 0)
+				{
+					EraseFinalNumber(input);
+				}
+				else if (wcscmp(temp, special[2].c_str()) == 0)
+				{
+					input = L"0";
+				}
+				else if (wcscmp(temp, special[3].c_str()) == 0)
+				{
+					if (!input.empty()) input.pop_back();
+				}
+				else if (wcscmp(temp, special[4].c_str()) == 0)
+				{
+					answer = double2wstr(CalculateInput(input));
+					input = answer;
+				}
 			}
 
 			SetFocus(hWnd);
@@ -379,7 +541,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 		return DefWindowProc(hWnd, msg, wParam, lParam);
 	}
-}
+	}
+
 	return 0;
 }
 
@@ -403,14 +566,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	wcex.hInstance = hInstance;
 	wcex.hIcon = LoadIcon(hInstance, IDI_APPLICATION);
 	wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcex.hbrBackground = CreateSolidBrush(RGB(32, 32, 32));
 	wcex.lpszMenuName = NULL;
 	wcex.lpszClassName = L"Window";
 	wcex.hIconSm = LoadIcon(hInstance, IDI_APPLICATION);
 
 	if (!RegisterClassEx(&wcex)) ErrorExit(L"RegisterClassEx");
 
-	int width = 200, height = width * WINDOW_RATIO;
+	int width = 320, height = width * WINDOW_RATIO;
 
 	// Step 2: Creating the Window
 	HWND hWnd = CreateWindowEx(
@@ -424,11 +587,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	if (hWnd == nullptr) ErrorExit(L"CreateWindowEx");
 
 #ifdef _WINDOWS 
-	ShowWindow(hwnd, nCmdShow); 
+	ShowWindow(hwnd, nCmdShow);
 #elif _CONSOLE
 	ShowWindow(hWnd, SW_SHOW);
 #endif
 	UpdateWindow(hWnd);
+
+	DWORD attribute = DWMWA_CAPTION_COLOR;
+	COLORREF color = RGB(32, 32, 32); // Specify the desired color here
+	DwmSetWindowAttribute(hWnd, attribute, &color, sizeof(COLORREF));
 
 	MSG Msg{};
 	while (GetMessage(&Msg, NULL, 0, 0) > 0)
