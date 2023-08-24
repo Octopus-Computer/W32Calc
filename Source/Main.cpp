@@ -593,10 +593,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 #endif
 	UpdateWindow(hWnd);
 
-	DWORD attribute = DWMWA_CAPTION_COLOR;
-	COLORREF color = RGB(32, 32, 32); // Specify the desired color here
-	DwmSetWindowAttribute(hWnd, attribute, &color, sizeof(COLORREF));
-
 	MSG Msg{};
 	while (GetMessage(&Msg, NULL, 0, 0) > 0)
 	{
