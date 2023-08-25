@@ -368,7 +368,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		switch (keyCode)
 		{
 		case VK_BACK:
-			if (!input.empty()) input.pop_back();
+			if(input.length() > 0)
+		{
+			input = input.substr(0, input.length() - 1);
+			SetWindowText(inputBox, input.c_str());
+		}
 			break;
 
 		case 0x0D:
@@ -475,7 +479,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 			WCHAR temp[3];
 			GetWindowText(hButton, temp, 3);
-			std::wcout << temp << std::endl;
 
 			if (!Filter(special, temp))
 			{
@@ -494,7 +497,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				}
 				else if (wcscmp(temp, special[2].c_str()) == 0)
 				{
-					input = L"0";
+					input.clear();
 				}
 				else if (wcscmp(temp, special[3].c_str()) == 0)
 				{
@@ -505,7 +508,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 					answer = double2wstr(CalculateInput(input));
 					input = answer;
 				}
+
+				
 			}
+
 
 			SetFocus(hWnd);
 		}
@@ -523,16 +529,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 	default:
 	{
-		if (input != prevInput)
-		{
-			if (answer.empty())
-			{
+		if (input != prevInput) {
+			if (answer.empty()) {
 				SetWindowTextW(inputBox, input.c_str());
+				RECT inputBoxRect = {};
+				GetClientRect(inputBox, &inputBoxRect);
+				InvalidateRect(hWnd, &inputBoxRect, TRUE);
 				prevInput = input;
 			}
-			else
-			{
+			else {
 				SetWindowTextW(inputBox, (prevInput + L"=" + answer).c_str());
+				RECT inputBoxRect = {};
+				GetClientRect(inputBox, &inputBoxRect);
+				InvalidateRect(hWnd, &inputBoxRect, TRUE);
 				prevInput = input;
 			}
 
