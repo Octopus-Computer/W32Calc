@@ -47,7 +47,7 @@ Contributions to this calculator application are welcome. If you find any issues
 
 ## License
 
-This project is licensed under the [The Unlicense](LICENSE).
+This project is licensed under the [The MIT License](LICENSE).
 
 ## Acknowledgments
 
