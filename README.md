@@ -22,9 +22,9 @@ Before running the calculator application, ensure that you have the following pr
 To install and run the calculator application, follow these steps:
 
 1. Clone this repository to your local machine using the following command:
-
+```
 git clone https://github.com/Octopus-Computer/W32Calc.git
-
+```
 2. Open the project in Microsoft Visual Studio.
 
 3. Build the project by selecting "Build" from the Visual Studio menu.
