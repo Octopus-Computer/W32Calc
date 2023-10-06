@@ -60,15 +60,12 @@ void Calculator::HandleCustomButton(LPARAM lParam)
         int buttonWidth = lpdis->rcItem.right - lpdis->rcItem.left;
         int buttonHeight = lpdis->rcItem.bottom - lpdis->rcItem.top;
 
-        // Define the roundness of the rectangle (change this value to adjust the roundness)
-        int cornerRadius = 10;
-
         // Draw the round rectangle button
         HPEN hPen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
         HBRUSH hBrush = CreateSolidBrush(RGB(59, 59, 59));
         SelectObject(lpdis->hDC, hPen);
         SelectObject(lpdis->hDC, hBrush);
-        RoundRect(lpdis->hDC, lpdis->rcItem.left, lpdis->rcItem.top, lpdis->rcItem.right, lpdis->rcItem.bottom, cornerRadius, cornerRadius);
+        Rectangle(lpdis->hDC, lpdis->rcItem.left, lpdis->rcItem.top, lpdis->rcItem.right, lpdis->rcItem.bottom);
 
         // Set the background mode and background color for the text
         SetBkMode(lpdis->hDC, TRANSPARENT);
@@ -228,6 +225,14 @@ void Calculator::HandleKeyboardInput(WPARAM wParam)
 
         break;
     }
+}
+
+LRESULT Calculator::ChangeStaticColor(WPARAM wParam)
+{
+    HDC hdcStatic = (HDC)wParam;
+    SetBkColor(hdcStatic, RGB(32, 32, 32));
+    SetTextColor(hdcStatic, RGB(255, 255, 255)); 
+    return (LRESULT)GetStockObject(NULL_BRUSH);  // Return the handle to a null brush to prevent background erasure
 }
 
 void Calculator::UpdateInputbox(HWND hWnd)

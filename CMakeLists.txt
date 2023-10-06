@@ -7,6 +7,6 @@ add_executable(W32Calc ${SRC})
 
 target_link_libraries(W32Calc dwmapi)
 
-#if(MSVC)
-#    target_link_options(W32Calc PRIVATE "/SUBSYSTEM:CONSOLE")
-#endif()
+if(MSVC)
+    target_link_options(W32Calc PRIVATE "/SUBSYSTEM:WINDOWS")
+endif()

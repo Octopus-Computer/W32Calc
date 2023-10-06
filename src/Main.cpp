@@ -1,7 +1,40 @@
 #include "Calculator.hpp"
-#include <windows.h>
+#include <Windows.h>
+#include <strsafe.h>
+#include <dwmapi.h>
 
-const wchar_t g_szClassName[] =L"myWindowClass";
+void ErrorExit(LPCWSTR lpszFunction)
+{
+	// Retrieve the system error message for the last-error code
+
+	LPVOID lpMsgBuf;
+	LPVOID lpDisplayBuf;
+	DWORD dw = GetLastError();
+
+	FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER |
+		FORMAT_MESSAGE_FROM_SYSTEM |
+		FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		dw,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR)&lpMsgBuf,
+		0, NULL);
+
+	// Display the error message and exit the process
+
+	lpDisplayBuf = (LPVOID)LocalAlloc(LMEM_ZEROINIT,
+		(lstrlen((LPCTSTR)lpMsgBuf) + lstrlen((LPCTSTR)lpszFunction) + 40) * sizeof(TCHAR));
+	StringCchPrintf((LPTSTR)lpDisplayBuf,
+		LocalSize(lpDisplayBuf) / sizeof(TCHAR),
+		TEXT("%s failed with error %d: %s"),
+		lpszFunction, dw, lpMsgBuf);
+	MessageBox(NULL, (LPCTSTR)lpDisplayBuf, TEXT("Error"), MB_OK);
+
+	LocalFree(lpMsgBuf);
+	LocalFree(lpDisplayBuf);
+	ExitProcess(dw);
+}
 
 Calculator W32Calc;
 
@@ -30,6 +63,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			W32Calc.HandleKeyboardInput(wParam);
 			break;
 
+		case WM_CTLCOLORSTATIC:
+			return W32Calc.ChangeStaticColor(wParam);
+
         case WM_CLOSE:
             DestroyWindow(hwnd);
         	break;
@@ -43,59 +79,49 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-int main()
+int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
-	HINSTANCE hInstance = GetModuleHandle(NULL);
+	WNDCLASSEX wcex;
 
-    WNDCLASSEX wc;
-    HWND hwnd;
-    MSG Msg;
+	wcex.cbSize = sizeof(WNDCLASSEX);
+	wcex.style = 0;
+	wcex.lpfnWndProc = WndProc;
+	wcex.cbClsExtra = 0;
+	wcex.cbWndExtra = 0;
+	wcex.hInstance = hInstance;
+	wcex.hIcon = LoadIcon(hInstance, IDI_APPLICATION);
+	wcex.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wcex.hbrBackground = CreateSolidBrush(RGB(32, 32, 32));
+	wcex.lpszMenuName = NULL;
+	wcex.lpszClassName = L"Window";
+	wcex.hIconSm = LoadIcon(hInstance, IDI_APPLICATION);
 
-    //Step 1: Registering the Window Class
-    wc.cbSize        = sizeof(WNDCLASSEX);
-    wc.style         = 0;
-    wc.lpfnWndProc   = WndProc;
-    wc.cbClsExtra    = 0;
-    wc.cbWndExtra    = 0;
-    wc.hInstance     = hInstance;
-    wc.hIcon         = LoadIcon(NULL, IDI_APPLICATION);
-    wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
-    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
-    wc.lpszMenuName  = NULL;
-    wc.lpszClassName = g_szClassName;
-    wc.hIconSm       = LoadIcon(NULL, IDI_APPLICATION);
+	if (!RegisterClassEx(&wcex)) 	(L"RegisterClassEx");
 
-    if(!RegisterClassEx(&wc))
-    {
-        MessageBox(NULL,L"Window Registration Failed!",L"Error!",
-            MB_ICONEXCLAMATION | MB_OK);
-        return 0;
-    }
+	int width = 320, height = width * 1.6625f;
 
-    // Step 2: Creating the Window
-    hwnd = CreateWindowEx(
-        WS_EX_CLIENTEDGE,
-        g_szClassName,
-       L"The title of my window",
-        WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, 500, 1000,
-        NULL, NULL, hInstance, NULL);
+	// Step 2: Creating the Window
+	HWND hWnd = CreateWindowEx(
+		WS_EX_DLGMODALFRAME,
+		L"Window",
+		L"Calculator",
+		WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT, CW_USEDEFAULT, width, height,
+		NULL, NULL, hInstance, NULL);
 
-    if(hwnd == NULL)
-    {
-        MessageBox(NULL,L"Window Creation Failed!",L"Error!",
-            MB_ICONEXCLAMATION | MB_OK);
-        return 0;
-    }
+	if (hWnd == nullptr) ErrorExit(L"CreateWindowEx");
 
-    ShowWindow(hwnd, SW_SHOW);
-    UpdateWindow(hwnd);
+	BOOL UseDarkMode = TRUE;
+	DwmSetWindowAttribute(hWnd, DWMWINDOWATTRIBUTE::DWMWA_USE_IMMERSIVE_DARK_MODE, &UseDarkMode, sizeof(UseDarkMode));
 
-    // Step 3: The Message Loop
-    while(GetMessage(&Msg, NULL, 0, 0) > 0)
-    {
-        TranslateMessage(&Msg);
-        DispatchMessage(&Msg);
-    }
-    return Msg.wParam;
+	ShowWindow(hWnd, nCmdShow);
+	UpdateWindow(hWnd);
+
+	MSG Msg{};
+	while (GetMessage(&Msg, NULL, 0, 0) > 0)
+	{
+		TranslateMessage(&Msg);
+		DispatchMessage(&Msg);
+	}
+	return Msg.wParam;
 }

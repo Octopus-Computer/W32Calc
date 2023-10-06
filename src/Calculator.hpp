@@ -28,6 +28,7 @@ public:
     void ResizeCalculator(HWND hWnd);
     void HandleButtonInput(WPARAM wParam, HWND hWnd);
     void HandleKeyboardInput(WPARAM wParam);
+    LRESULT ChangeStaticColor(WPARAM wParam);
     void UpdateInputbox(HWND hWnd);
 
 private:
